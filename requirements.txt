@@ -1,0 +1,13 @@
+numpy
+pandas
+pyarrow
+scipy
+shapely>=2.0
+pyproj
+folium
+matplotlib
+seaborn
+pyyaml
+pytest
+tqdm
+scikit-learn

@@ -1,0 +1,19 @@
+raw_data_path: "data/raw/Student folder"
+id_columns:
+  - trip_id
+  - point_idx
+  - arc_id
+label_column: label
+split_column: split
+meta_columns:
+  - epsg
+feature_columns:
+  - distance
+  - distance_rank
+  - heading_diff
+  - speed
+  - arc_length
+  - pos_along_arc
+  - node_degree
+  - prev_arc_connectivity
+  - time_gap

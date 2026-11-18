@@ -2,6 +2,11 @@ data/raw/
 data/processed/*
 !data/processed/README.md
 !data/processed/sample_*.parquet
+*.joblib
+*.pkl
+*.zip
+*.parquet
+!data/processed/sample_*.parquet
 __pycache__/
 *.pyc
 .venv/
