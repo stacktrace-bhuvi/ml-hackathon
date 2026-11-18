@@ -11,3 +11,8 @@ pyyaml
 pytest
 tqdm
 scikit-learn
+lightgbm
+optuna
+fastapi
+uvicorn[standard]
+joblib
