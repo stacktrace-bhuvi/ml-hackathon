@@ -1,0 +1,43 @@
+{
+  "model": "LightGBM (tuned)",
+  "features": [
+    "distance",
+    "distance_rank",
+    "dist_minus_min",
+    "n_cands",
+    "heading_diff",
+    "speed",
+    "arc_length",
+    "pos_along_arc",
+    "node_degree",
+    "prev_arc_connectivity",
+    "next_arc_connectivity",
+    "time_gap"
+  ],
+  "params": {
+    "num_leaves": 133,
+    "learning_rate": 0.06932942934078777,
+    "n_estimators": 100,
+    "min_child_samples": 210,
+    "subsample": 0.8947072855407493,
+    "colsample_bytree": 0.6465529408114329,
+    "reg_lambda": 0.06421853828234377,
+    "reg_alpha": 0.003982165051543886,
+    "subsample_freq": 1
+  },
+  "threshold": 0.5,
+  "student_test": {
+    "model": "LightGBM tuned",
+    "cv_macro_f1": 0.9270144261018232,
+    "cv_macro_f1_std": 0.017249437652307034,
+    "cv_top1": 0.8762943512156938,
+    "test_top1": 0.8818371607515657,
+    "test_macro_f1": 0.9274142321354614,
+    "test_precision": 0.8844847713042555,
+    "test_recall": 0.8736831070810839,
+    "test_log_loss": 0.10573555956674517,
+    "test_route_continuity": 0.8094607867735766,
+    "train_seconds": 3.5516881942749023,
+    "inference_seconds": 0.15514540672302246
+  }
+}

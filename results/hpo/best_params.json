@@ -1,0 +1,31 @@
+{
+  "best_params": {
+    "num_leaves": 133,
+    "learning_rate": 0.06932942934078777,
+    "n_estimators": 100,
+    "min_child_samples": 210,
+    "subsample": 0.8947072855407493,
+    "colsample_bytree": 0.6465529408114329,
+    "reg_lambda": 0.06421853828234377,
+    "reg_alpha": 0.003982165051543886,
+    "subsample_freq": 1
+  },
+  "best_cv_macro_f1": 0.9270144261018232,
+  "n_trials": 30,
+  "n_complete": 12,
+  "n_pruned": 18,
+  "search_seconds": 883.9929165840149,
+  "search_space": {
+    "num_leaves": "int log [15, 255]",
+    "learning_rate": "float log [0.01, 0.2]",
+    "n_estimators": "int [100, 800] step 50",
+    "min_child_samples": "int log [10, 300]",
+    "subsample": "float [0.5, 1.0] (bagging_freq=1)",
+    "colsample_bytree": "float [0.5, 1.0]",
+    "reg_lambda": "float log [1e-3, 10]",
+    "reg_alpha": "float log [1e-3, 10]"
+  },
+  "sampler": "TPESampler(seed=42)",
+  "pruner": "MedianPruner(n_startup_trials=5, n_warmup_steps=1)",
+  "objective": "mean validation Macro F1, 5-fold GroupKFold by trip, 78 train trips"
+}

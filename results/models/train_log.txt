@@ -1,0 +1,68 @@
+train rows=1034406 trips=78 positives=0.174; student_test rows=113648
+
+=== LogisticRegression (Linear) ===
+  fold 0: val macroF1=0.8924 top1=0.8318 logloss=0.1874 | train macroF1=0.9077 (2.4s)
+  fold 1: val macroF1=0.8932 top1=0.8563 logloss=0.1545 | train macroF1=0.9044 (1.8s)
+  fold 2: val macroF1=0.8995 top1=0.8497 logloss=0.1854 | train macroF1=0.9054 (1.7s)
+  fold 3: val macroF1=0.9282 top1=0.9125 logloss=0.1175 | train macroF1=0.8997 (1.9s)
+  fold 4: val macroF1=0.9053 top1=0.8552 logloss=0.1518 | train macroF1=0.9039 (2.0s)
+  student_test: macroF1=0.9027 top1=0.8565 logloss=0.1545 continuity=0.7376 train=2.2s infer=0.09s
+
+=== GaussianNB (Probabilistic) ===
+  fold 0: val macroF1=0.8116 top1=0.8200 logloss=0.7280 | train macroF1=0.8340 (1.2s)
+  fold 1: val macroF1=0.8558 top1=0.8494 logloss=0.4155 | train macroF1=0.8258 (1.2s)
+  fold 2: val macroF1=0.7988 top1=0.7945 logloss=1.0067 | train macroF1=0.8324 (1.3s)
+  fold 3: val macroF1=0.8479 top1=0.8793 logloss=0.4834 | train macroF1=0.8177 (1.3s)
+  fold 4: val macroF1=0.8182 top1=0.8101 logloss=0.6517 | train macroF1=0.8206 (1.3s)
+  student_test: macroF1=0.8189 top1=0.8362 logloss=0.6175 continuity=0.7813 train=1.4s infer=0.18s
+
+=== KNN (Instance-based) ===
+  fold 0: val macroF1=0.9030 top1=0.8335 logloss=0.2208 | train macroF1=0.9357 (0.2s)
+  fold 1: val macroF1=0.9075 top1=0.8570 logloss=0.1622 | train macroF1=0.9342 (0.2s)
+  fold 2: val macroF1=0.9086 top1=0.8559 logloss=0.2367 | train macroF1=0.9365 (0.2s)
+  fold 3: val macroF1=0.9374 top1=0.9135 logloss=0.1072 | train macroF1=0.9302 (0.1s)
+  fold 4: val macroF1=0.9159 top1=0.8566 logloss=0.1572 | train macroF1=0.9333 (0.2s)
+  student_test: macroF1=0.9133 top1=0.8578 logloss=0.1599 continuity=0.7747 train=0.2s infer=31.10s
+
+=== DecisionTree (Tree) ===
+  fold 0: val macroF1=0.8845 top1=0.8108 logloss=1.1438 | train macroF1=1.0000 (23.0s)
+  fold 1: val macroF1=0.8860 top1=0.8295 logloss=0.9483 | train macroF1=1.0000 (15.2s)
+  fold 2: val macroF1=0.8800 top1=0.8064 logloss=1.2268 | train macroF1=1.0000 (15.3s)
+  fold 3: val macroF1=0.9190 top1=0.8747 logloss=0.7045 | train macroF1=1.0000 (14.3s)
+  fold 4: val macroF1=0.8973 top1=0.8193 logloss=0.9341 | train macroF1=1.0000 (15.3s)
+  student_test: macroF1=0.8965 top1=0.8325 logloss=0.9399 continuity=0.7036 train=19.2s infer=0.04s
+
+=== RandomForest (Ensemble (bagging)) ===
+  fold 0: val macroF1=0.9130 top1=0.8455 logloss=0.1456 | train macroF1=0.9538 (49.3s)
+  fold 1: val macroF1=0.9191 top1=0.8705 logloss=0.1082 | train macroF1=0.9534 (52.1s)
+  fold 2: val macroF1=0.9152 top1=0.8641 logloss=0.1464 | train macroF1=0.9541 (42.2s)
+  fold 3: val macroF1=0.9525 top1=0.9317 logloss=0.0719 | train macroF1=0.9499 (39.9s)
+  fold 4: val macroF1=0.9313 top1=0.8703 logloss=0.1043 | train macroF1=0.9531 (39.0s)
+  student_test: macroF1=0.9286 top1=0.8836 logloss=0.1065 continuity=0.7997 train=97.3s infer=1.46s
+
+=== LightGBM (Boosting) ===
+  fold 0: val macroF1=0.9113 top1=0.8437 logloss=0.1467 | train macroF1=0.9499 (11.8s)
+  fold 1: val macroF1=0.9192 top1=0.8682 logloss=0.1107 | train macroF1=0.9511 (15.4s)
+  fold 2: val macroF1=0.9124 top1=0.8614 logloss=0.1534 | train macroF1=0.9516 (19.8s)
+  fold 3: val macroF1=0.9532 top1=0.9327 logloss=0.0703 | train macroF1=0.9463 (18.5s)
+  fold 4: val macroF1=0.9315 top1=0.8705 logloss=0.1014 | train macroF1=0.9514 (18.0s)
+  student_test: macroF1=0.9255 top1=0.8815 logloss=0.1080 continuity=0.8047 train=8.5s infer=0.39s
+
+=== MLP (Neural network) ===
+  fold 0: val macroF1=0.9056 top1=0.8356 logloss=0.1610 | train macroF1=0.9271 (18.9s)
+  fold 1: val macroF1=0.9146 top1=0.8613 logloss=0.1209 | train macroF1=0.9265 (35.1s)
+  fold 2: val macroF1=0.9099 top1=0.8581 logloss=0.1634 | train macroF1=0.9294 (36.7s)
+  fold 3: val macroF1=0.9453 top1=0.9243 logloss=0.0835 | train macroF1=0.9199 (33.3s)
+  fold 4: val macroF1=0.9238 top1=0.8641 logloss=0.1140 | train macroF1=0.9270 (44.9s)
+C:\Users\mythr\OneDrive\Desktop\b_tech\sem5\ml\hackathon\PathSnap\.venv\Lib\site-packages\sklearn\neural_network\_multilayer_perceptron.py:785: ConvergenceWarning: Stochastic Optimizer: Maximum iterations (40) reached and the optimization hasn't converged yet.
+  warnings.warn(
+  student_test: macroF1=0.9217 top1=0.8730 logloss=0.1176 continuity=0.7864 train=54.3s infer=0.10s
+
+                 model  cv_macro_f1_mean  cv_top1_mean  test_macro_f1  test_top1  test_log_loss  test_route_continuity  inference_seconds
+0  LogisticRegression            0.9037        0.8611         0.9027     0.8565         0.1545                 0.7376             0.0940
+1          GaussianNB            0.8265        0.8306         0.8189     0.8362         0.6175                 0.7813             0.1781
+2                 KNN            0.9145        0.8633         0.9133     0.8578         0.1599                 0.7747            31.1002
+3        DecisionTree            0.8933        0.8281         0.8965     0.8325         0.9399                 0.7036             0.0401
+4        RandomForest            0.9262        0.8764         0.9286     0.8836         0.1065                 0.7997             1.4631
+5            LightGBM            0.9255        0.8753         0.9255     0.8815         0.1080                 0.8047             0.3851
+6                 MLP            0.9198        0.8687         0.9217     0.8730         0.1176                 0.7864             0.1000
