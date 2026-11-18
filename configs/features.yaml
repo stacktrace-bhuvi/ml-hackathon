@@ -1,6 +1,15 @@
 raw_data_path: "data/raw/Student folder"
-default_R: 75.0   # search radius in meters (1.50% miss rate on train partition)
-default_K: 15     # max candidates kept per point (average 8.68 candidates/point)
+# Candidate generation - chosen from the R/K sweep on train trips (results/candidates/rk_sweep.csv):
+# R=50 m, K=8 -> candidate miss rate 1.85% at 5.6 candidates / point.
+radius_m: 50.0
+k: 8
+heading_window: 2       # +-2 points (1 Hz) used for the GPS heading
+stationary_m: 3.0       # window displacement below this -> heading unknown (heading_diff = 0)
+# Trips whose whole GPS track is >100 m from its reference route (results/eda/route_gps_anomalies.csv).
+# Their labels are unreliable, so they are excluded from training / cross-validation.
+exclude_from_training:
+  - "00000033"
+  - "00000054"
 id_columns:
   - trip_id
   - point_idx
@@ -9,13 +18,17 @@ label_column: label
 split_column: split
 meta_columns:
   - epsg
+  - fallback
 feature_columns:
   - distance
   - distance_rank
+  - dist_minus_min
+  - n_cands
   - heading_diff
   - speed
   - arc_length
   - pos_along_arc
   - node_degree
   - prev_arc_connectivity
+  - next_arc_connectivity
   - time_gap

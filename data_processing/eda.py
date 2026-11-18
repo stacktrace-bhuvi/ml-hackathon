@@ -15,8 +15,7 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
-from shapely.geometry import LineString, Point
-from shapely.ops import nearest_points
+import shapely
 import folium
 
 # Local imports
@@ -206,28 +205,14 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
                     
                 has_repeated_arcs = (len(np.unique(r_arcs)) < n_route)
                 
-                # Measure distance from GPS points to route geometry
-                # Build route multiline
-                route_lines = []
-                for a_id in np.unique(r_arcs):
-                    u_i, v_i = arcs.loc[a_id, "from_node"], arcs.loc[a_id, "to_node"]
-                    p1 = (nodes.loc[u_i, "x"], nodes.loc[u_i, "y"])
-                    p2 = (nodes.loc[v_i, "x"], nodes.loc[v_i, "y"])
-                    route_lines.append(LineString([p1, p2]))
-                    
-                # Compute distance for each point to the route segments
-                pts_x = track["x"].values
-                pts_y = track["y"].values
-                
-                # Vectorized point-to-segment distance for candidate segments
-                # For each point, find minimum distance to route segments
-                pt_dists = []
-                for px, py in zip(pts_x, pts_y):
-                    p = Point(px, py)
-                    min_d = min(line.distance(p) for line in route_lines)
-                    pt_dists.append(min_d)
-                    
-                all_gps_route_distances.extend(pt_dists)
+                # Distance from every GPS point to the nearest part of the reference route
+                # (vectorised with shapely 2: one MultiLineString, all points at once)
+                ua = arcs["from_node"].values[np.unique(r_arcs)]
+                va = arcs["to_node"].values[np.unique(r_arcs)]
+                segs = np.stack([nodes[["x", "y"]].values[ua], nodes[["x", "y"]].values[va]], axis=1)
+                route_geom = shapely.multilinestrings(shapely.linestrings(segs))
+                pt_dists = shapely.distance(shapely.points(track[["x", "y"]].values), route_geom)
+                all_gps_route_distances.extend(pt_dists.tolist())
                 
                 route_rows.append({
                     "split": split,
@@ -270,7 +255,9 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
     for s, color in [("train", "blue"), ("student_test", "red")]:
         subset = df_geo[df_geo["split"] == s]
         plt.scatter(subset["center_lon"], subset["center_lat"], c=color, label=s, alpha=0.7, edgecolors="k", s=60)
-    plt.title("Worldwide Distribution of Trip Centers (90 Trips Across ~25 UTM Zones)")
+    n_zone_hemi = df_geo.groupby(["utm_zone", "hemisphere"]).ngroups
+    plt.title(f"Worldwide Distribution of Trip Centers ({len(df_geo)} trips, "
+              f"{df_geo['utm_zone'].nunique()} UTM zone numbers / {n_zone_hemi} zone+hemisphere combinations)")
     plt.xlabel("Longitude (deg)")
     plt.ylabel("Latitude (deg)")
     plt.axhline(0, color="grey", linestyle="--", linewidth=0.8, alpha=0.7)
@@ -303,22 +290,41 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
     plt.close()
     
     # 4. GPS Noise Distribution (Distance to Route)
+    # Trips whose GPS track is systematically far from the reference route (label-unreliable)
+    df_route["offset_trip"] = df_route["gps_route_dist_median_m"] > 50.0
+    df_route["partial_offset_trip"] = (~df_route["offset_trip"]) & (df_route["gps_route_dist_95pct_m"] > 50.0)
+    df_route.to_csv(os.path.join(results_dir, "route_analysis.csv"), index=False)
+    anomalies = df_route[df_route["offset_trip"] | df_route["partial_offset_trip"]]
+    anomalies.to_csv(os.path.join(results_dir, "route_gps_anomalies.csv"), index=False)
+
     if all_gps_route_distances:
-        plt.figure(figsize=(8, 5))
         dist_arr = np.array(all_gps_route_distances)
-        dist_clipped = np.clip(dist_arr, 0, 50)
-        plt.hist(dist_clipped, bins=50, color="coral", edgecolor="black")
-        p50 = np.median(dist_arr)
-        p95 = np.percentile(dist_arr, 95)
-        plt.axvline(p50, color="blue", linestyle="--", label=f"Median ({p50:.1f} m)")
-        plt.axvline(p95, color="red", linestyle="--", label=f"95th Pct ({p95:.1f} m)")
-        plt.title("GPS Noise Level: Distance from Track Points to Ground Truth Route")
-        plt.xlabel("Distance to Reference Route (meters)")
-        plt.ylabel("Point Count")
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(os.path.join(vis_dir, "gps_route_noise_hist.png"), dpi=200)
-        plt.close()
+        fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+        # (a) all points, log-scale y so the long tail is visible; last bin = ">= 100 m"
+        edges = np.r_[np.arange(0, 101, 2), np.inf]
+        counts, _ = np.histogram(dist_arr, bins=edges)
+        axes[0].bar(edges[:-2], counts[:-1], width=2, align="edge", color="coral", edgecolor="black", lw=.3)
+        axes[0].bar(100, counts[-1], width=4, align="edge", color="darkred", label=f">= 100 m ({counts[-1]} pts)")
+        axes[0].set_yscale("log")
+        p50, p95 = np.median(dist_arr), np.percentile(dist_arr, 95)
+        axes[0].axvline(p50, color="blue", ls="--", label=f"Median {p50:.1f} m")
+        axes[0].set_title("All 90 trips (log scale)")
+        axes[0].set_xlabel("Distance GPS point -> reference route (m)")
+        axes[0].set_ylabel("Points (log)")
+        axes[0].legend()
+        # (b) per-trip median vs 95th percentile: shows the tail comes from a few trips
+        c = np.where(df_route["offset_trip"], "red", np.where(df_route["partial_offset_trip"], "orange", "steelblue"))
+        axes[1].scatter(df_route["gps_route_dist_median_m"], df_route["gps_route_dist_95pct_m"], c=c, edgecolors="k", s=45)
+        for _, r in anomalies.iterrows():
+            axes[1].annotate(r["trip_id"], (r["gps_route_dist_median_m"], r["gps_route_dist_95pct_m"]), fontsize=8,
+                             xytext=(4, 4), textcoords="offset points")
+        axes[1].set_xscale("log"); axes[1].set_yscale("log")
+        axes[1].set_title("Per trip: median vs 95th pct (red = whole track offset, orange = partly)")
+        axes[1].set_xlabel("Median distance (m)"); axes[1].set_ylabel("95th percentile (m)")
+        fig.suptitle("GPS noise: distance from GPS points to the reference route")
+        fig.tight_layout()
+        fig.savefig(os.path.join(vis_dir, "gps_route_noise_hist.png"), dpi=200)
+        plt.close(fig)
         
     # 5. Network Size vs Track Length Scatter
     plt.figure(figsize=(8, 5))
@@ -383,31 +389,20 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
         (v_lon >= min_lo) & (v_lon <= max_lo) & (v_lat >= min_la) & (v_lat <= max_la)
     )
     
-    for ulon, ulat, vlon, vlat in zip(u_lon[mask], u_lat[mask], v_lon[mask], v_lat[mask]):
-        folium.PolyLine(
-            locations=[[ulat, ulon], [vlat, vlon]],
-            color="grey",
-            weight=1.5,
-            opacity=0.6
-        ).add_to(road_layer)
+    # one multi-segment PolyLine for the whole clipped network (one object per arc made the HTML ~76 MB)
+    segs = [[[round(ulat, 6), round(ulon, 6)], [round(vlat, 6), round(vlon, 6)]]
+            for ulon, ulat, vlon, vlat in zip(u_lon[mask], u_lat[mask], v_lon[mask], v_lat[mask])]
+    folium.PolyLine(locations=segs, color="grey", weight=1.5, opacity=0.6).add_to(road_layer)
     road_layer.add_to(fmap)
     
     # True route layer (green)
     if route_m is not None:
         route_layer = folium.FeatureGroup(name="True Route (Ground Truth)")
         r_arcs = route_m["arc_id"].values
-        for aid in r_arcs:
-            un = arcs_m.loc[aid, "from_node"]
-            vn = arcs_m.loc[aid, "to_node"]
-            folium.PolyLine(
-                locations=[
-                    [nodes_m.loc[un, "lat"], nodes_m.loc[un, "lon"]],
-                    [nodes_m.loc[vn, "lat"], nodes_m.loc[vn, "lon"]]
-                ],
-                color="green",
-                weight=4,
-                opacity=0.85
-            ).add_to(route_layer)
+        rsegs = [[[nodes_m.loc[arcs_m.loc[a, "from_node"], "lat"], nodes_m.loc[arcs_m.loc[a, "from_node"], "lon"]],
+                  [nodes_m.loc[arcs_m.loc[a, "to_node"], "lat"], nodes_m.loc[arcs_m.loc[a, "to_node"], "lon"]]]
+                 for a in r_arcs]
+        folium.PolyLine(locations=rsegs, color="green", weight=4, opacity=0.85).add_to(route_layer)
         route_layer.add_to(fmap)
         
     # Raw GPS track points (blue dots)
@@ -433,12 +428,18 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
     exact_1s_all = (dt_arr == 1.0).sum() / len(dt_arr) * 100
     p50_noise = np.median(all_gps_route_distances)
     p95_noise = np.percentile(all_gps_route_distances, 95)
-    
+    clean = df_route[~(df_route["offset_trip"] | df_route["partial_offset_trip"])]
+    clean_ids = set(clean["trip_id"])
+    # pooled noise on clean trips only (recomputed from per-trip medians / p95 for the note)
+    offset_list = ", ".join(df_route.loc[df_route["offset_trip"], "trip_id"]) or "none"
+    partial_list = ", ".join(df_route.loc[df_route["partial_offset_trip"], "trip_id"]) or "none"
+    n_zone_hemi = df_geo.groupby(["utm_zone", "hemisphere"]).ngroups
+
     notes_content = f"""# Data Quality Notes & Observations
 
 ## 1. Inventory & Geography
 - Total Trips: **{len(df_inv)}** ({len(df_inv[df_inv['split']=='train'])} train, {len(df_inv[df_inv['split']=='student_test'])} student_test).
-- Worldwide Distribution: Trips span worldwide coordinates, covering **{df_geo['utm_zone'].nunique()} unique UTM zones** across both the Northern and Southern hemispheres.
+- Worldwide Distribution: Trips span worldwide coordinates, covering **{df_geo['utm_zone'].nunique()} UTM zone numbers** ({n_zone_hemi} zone + hemisphere combinations, i.e. distinct EPSG codes) across both the Northern and Southern hemispheres. Each trip is therefore projected with its own UTM zone.
 - Track points per trip range from **{df_inv['n_points'].min()}** to **{df_inv['n_points'].max()}** points.
 - Road networks vary from **{df_inv['n_nodes'].min()}** to **{df_inv['n_nodes'].max()}** nodes (up to **{df_inv['n_arcs'].max()}** directed arcs).
 
@@ -450,8 +451,12 @@ def run_eda(raw_path="data/raw/Student folder", results_dir="results/eda", vis_d
 
 ## 3. Data Integrity & Noise
 - NaN values: 0 missing or NaN coordinates in both track and road network files.
-- GPS Measurement Noise: The median distance from raw GPS points to the true reference route is **{p50_noise:.2f} meters**, with a 95th percentile of **{p95_noise:.2f} meters**.
-- Candidate Radius (R) implications: A search radius of $R \\ge 50\\text{{ m}}$ or $R = 75\\text{{ m}}$ safely encloses the vast majority of true route arcs even under moderate GPS multipath error.
+- GPS Measurement Noise (all trips pooled): median distance from a GPS point to the reference route is **{p50_noise:.2f} m**, 95th percentile **{p95_noise:.2f} m**.
+- The heavy tail is NOT ordinary GPS noise: it comes from a few trips.
+  - Whole track offset from its route (median distance > 50 m): **{offset_list}**. The entire GPS track lies ~100+ m from the reference route (systematic shift or mismatched reference) -> labels for these trips are unreliable.
+  - Partly offset (median fine, 95th pct > 50 m): **{partial_list}**.
+  - On the remaining {len(clean)} trips the per-trip median distance is {clean['gps_route_dist_median_m'].median():.2f} m and the per-trip 95th percentile is at most {clean['gps_route_dist_95pct_m'].max():.1f} m.
+- Decision: the whole-track-offset trips are excluded from model training / cross-validation (see `features/make_dataset.py`); they are kept in all EDA tables. Candidate radius R is chosen with an R/K sweep of the candidate miss rate (`results/candidates/rk_sweep.csv`).
 
 ## 4. Road Network Topology
 - Arcs are strictly directed. Approximately **{df_net['share_reverse_twin'].mean()*100:.1f}%** of arcs have reverse twins (bidirectional roads), while the remainder represent one-way segments.

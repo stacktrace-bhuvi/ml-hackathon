@@ -95,7 +95,8 @@ def validate_trip_data(
 def load_trip(
     trip_id: str,
     split: str = "train",
-    raw_data_path: str = "data/raw/Student folder"
+    raw_data_path: str = "data/raw/Student folder",
+    with_route: bool = True,
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, Optional[pd.DataFrame], int]:
     """
     Load a single trip:
@@ -146,7 +147,8 @@ def load_trip(
     
     # Load route if exists
     route = None
-    if os.path.isfile(route_path):
+    # with_route=False is used by the prediction pipeline so the reference route is never read there
+    if with_route and os.path.isfile(route_path):
         try:
             route = pd.read_csv(
                 route_path,

@@ -1,216 +1,149 @@
 """
-Feature Engineering for PathSnap Map-Matching.
-Constructs candidate road segments and extracts metric features strictly without route dependency.
-Separate function attaches 'label' from true_arc ground truth.
-Outputs row-level candidates table matching configs/features.yaml contract.
+Candidate generation + feature engineering (one row per (GPS point, candidate arc)).
+
+Candidate generation
+  * Arcs are straight segments between their two nodes, in the trip's UTM metres.
+  * A shapely STRtree spatial index returns all arcs within R metres of each GPS point
+    (networks have up to 307k arcs, so a brute-force distance to every arc is far too slow).
+  * Per point we keep the K nearest. A point with no arc within R keeps its single nearest arc
+    (flag `fallback` = 1) so that the HMM always has at least one state per point.
+
+Features (all computed from the GPS track and the road network only - never from the route):
+  distance             metres from the point to the arc (closer = more likely)
+  distance_rank        1 = nearest candidate of this point
+  dist_minus_min       distance - nearest candidate distance (relative closeness)        [added]
+  n_cands              number of candidates of this point (dense junction vs open road) [added]
+  heading_diff         |GPS heading - arc bearing| in [0, 180] deg. GPS heading is the direction of
+                       travel over a +-2 point window (1 Hz heading is very noisy). Separates the two
+                       directed twins of a two-way road (92% of arcs have a reverse twin).
+                       Stationary points (window displacement < 3 m) get 0.0 (contract choice).
+  speed                m/s from the previous point
+  arc_length           metres
+  pos_along_arc        where the point projects on the arc, 0 = start node, 1 = end node
+  node_degree          out-degree of the arc's end node (junction size)
+  prev_arc_connectivity relation to the previous point's nearest candidate:
+                       0 same arc, 1 direct successor, 2 reverse twin, 3 other
+  next_arc_connectivity same, with the next point's nearest candidate (seen from that arc)      [added]
+  time_gap             seconds since the previous point
 """
-import os
-import math
+from typing import Dict, Optional
+
 import numpy as np
 import pandas as pd
-from typing import Dict, Any, Tuple, Optional
+import shapely
 
-from features.candidates import generate_candidates_for_trip
+DEFAULT_CONFIG = {"radius_m": 50.0, "k": 8, "heading_window": 2, "stationary_m": 3.0}
 
-def compute_azimuth_degrees(dx: np.ndarray, dy: np.ndarray) -> np.ndarray:
-    """
-    Compute geographic azimuth / bearing in degrees [0, 360) from displacement vector (dx, dy).
-    0 deg = North (+y), 90 deg = East (+x), 180 deg = South (-y), 270 deg = West (-x).
-    """
-    angle = np.degrees(np.arctan2(dx, dy)) # angle with +y axis
-    return (angle + 360.0) % 360.0
 
-def compute_angle_difference(angle1: np.ndarray, angle2: np.ndarray) -> np.ndarray:
-    """
-    Compute acute angle difference [0, 180] degrees between two azimuth arrays.
-    """
-    diff = np.abs(angle1 - angle2) % 360.0
-    return np.where(diff > 180.0, 360.0 - diff, diff)
+def arc_geometry(nodes: pd.DataFrame, arcs: pd.DataFrame):
+    nxy = nodes[["x", "y"]].to_numpy()
+    a = nxy[arcs["from_node"].to_numpy()]
+    b = nxy[arcs["to_node"].to_numpy()]
+    return a, b
 
-def build_candidates_and_features(
-    track: pd.DataFrame,
-    nodes: pd.DataFrame,
-    arcs: pd.DataFrame,
-    config: Optional[Dict[str, Any]] = None,
-    R: float = 75.0,
-    K: int = 15,
-    trip_id: str = "unknown",
-    split: str = "train",
-    epsg: int = 32632
-) -> pd.DataFrame:
-    """
-    Build candidate road arcs and extract engineered features strictly from track + nodes + arcs.
-    NO dependency on route file.
-    
-    Contract columns produced:
-    - ID columns: trip_id, point_idx, arc_id
-    - Split / meta: split, epsg
-    - Feature columns:
-      distance, distance_rank, heading_diff, speed, arc_length, pos_along_arc,
-      node_degree, prev_arc_connectivity, time_gap
-    """
-    if config is not None:
-        R = float(config.get("default_R", R))
-        K = int(config.get("default_K", K))
-        
-    n_pts = len(track)
-    if n_pts == 0:
-        return pd.DataFrame()
-        
-    # 1. Candidate spatial search
-    pt_indices, cand_arcs, cand_dists = generate_candidates_for_trip(track, nodes, arcs, R=R, K=K)
-    if len(pt_indices) == 0:
-        return pd.DataFrame()
-        
-    # 2. Point-level kinematic features
-    px = track["x"].values
-    py = track["y"].values
-    pt = track["t"].values
-    
-    # Velocity and Heading
-    dx = np.diff(px, prepend=px[0])
-    dy = np.diff(py, prepend=py[0])
-    dt = np.diff(pt, prepend=pt[0])
-    dt_safe = np.where(dt <= 0, 1.0, dt)
-    
-    speeds = np.sqrt(dx**2 + dy**2) / dt_safe
-    speeds[0] = speeds[1] if n_pts > 1 else 0.0
-    
-    # GPS headings (smoothed using forward and backward difference)
-    gps_headings = compute_azimuth_degrees(dx, dy)
-    # If stationary (speed < 0.5 m/s), heading is noisy
-    is_stationary = speeds < 0.5
-    
-    # 3. Arc-level features
-    u = arcs["from_node"].values
-    v = arcs["to_node"].values
-    
-    u_x = nodes.loc[u, "x"].values
-    u_y = nodes.loc[u, "y"].values
-    v_x = nodes.loc[v, "x"].values
-    v_y = nodes.loc[v, "y"].values
-    
-    arc_dx = v_x - u_x
-    arc_dy = v_y - u_y
-    arc_lengths = np.sqrt(arc_dx**2 + arc_dy**2)
-    arc_headings = compute_azimuth_degrees(arc_dx, arc_dy)
-    
-    # Out-degree of nodes
-    out_degrees = np.bincount(u, minlength=len(nodes))
-    arc_node_degrees = out_degrees[v]
-    
-    # Reverse twin map: hash (u, v) -> arc_id
-    # Create lookup for connectivity
-    edge_to_arc = dict(zip(zip(u, v), range(len(arcs))))
-    
-    # 4. Map candidates to features
-    # Vectorized extraction per candidate row
-    c_pts = pt_indices
-    c_arcs = cand_arcs
-    c_dists = cand_dists
-    
-    # Distance rank per point
-    # Count occurrences to get 1-indexed rank
-    df_temp = pd.DataFrame({"pt_idx": c_pts, "dist": c_dists})
-    dist_ranks = df_temp.groupby("pt_idx")["dist"].rank(method="first").astype(np.int32).values
-    
-    # Heading difference
-    c_gps_hdg = gps_headings[c_pts]
-    c_arc_hdg = arc_headings[c_arcs]
-    c_heading_diff = compute_angle_difference(c_gps_hdg, c_arc_hdg)
-    # Handle stationary points: fill with 0.0
-    c_heading_diff[is_stationary[c_pts]] = 0.0
-    
-    # Speed and Time gap
-    c_speed = speeds[c_pts]
-    c_time_gap = dt[c_pts]
-    
-    # Arc length
-    c_arc_len = arc_lengths[c_arcs]
-    
-    # Position along arc (projection ratio t in [0, 1])
-    c_px = px[c_pts]
-    c_py = py[c_pts]
-    c_ux = u_x[c_arcs]
-    c_uy = u_y[c_arcs]
-    c_adx = arc_dx[c_arcs]
-    c_ady = arc_dy[c_arcs]
-    c_len_sq = np.maximum(c_arc_len**2, 1e-4)
-    
-    proj_t = ((c_px - c_ux) * c_adx + (c_py - c_uy) * c_ady) / c_len_sq
-    c_pos_along_arc = np.clip(proj_t, 0.0, 1.0)
-    
-    # Destination node degree
-    c_node_degree = arc_node_degrees[c_arcs]
-    
-    # Prev arc connectivity: relation to nearest candidate of point (pt - 1)
-    # Find nearest candidate arc for each point
-    nearest_arc_per_pt = {}
-    for p, a, rk in zip(c_pts, c_arcs, dist_ranks):
-        if rk == 1:
-            nearest_arc_per_pt[p] = a
-            
-    c_connectivity = np.full(len(c_pts), 3, dtype=np.int32)
-    for idx, (p, a) in enumerate(zip(c_pts, c_arcs)):
-        if p == 0 or (p - 1) not in nearest_arc_per_pt:
-            c_connectivity[idx] = 0 # root point
-            continue
-        prev_a = nearest_arc_per_pt[p - 1]
-        if a == prev_a:
-            c_connectivity[idx] = 0 # same arc
-        elif arcs.loc[a, "from_node"] == arcs.loc[prev_a, "to_node"]:
-            c_connectivity[idx] = 1 # successor connected
-        elif (arcs.loc[a, "from_node"] == arcs.loc[prev_a, "to_node"]) and (arcs.loc[a, "to_node"] == arcs.loc[prev_a, "from_node"]):
-            c_connectivity[idx] = 2 # reverse twin
-        else:
-            c_connectivity[idx] = 3 # other / gap
-            
-    # Assemble DataFrame
-    cands_df = pd.DataFrame({
-        "trip_id": str(trip_id),
-        "point_idx": c_pts.astype(np.int64),
-        "arc_id": c_arcs.astype(np.int64),
-        "split": str(split),
-        "epsg": np.int32(epsg),
-        "distance": c_dists.astype(np.float64),
-        "distance_rank": dist_ranks.astype(np.int32),
-        "heading_diff": c_heading_diff.astype(np.float64),
-        "speed": c_speed.astype(np.float64),
-        "arc_length": c_arc_len.astype(np.float64),
-        "pos_along_arc": c_pos_along_arc.astype(np.float64),
-        "node_degree": c_node_degree.astype(np.int32),
-        "prev_arc_connectivity": c_connectivity.astype(np.int32),
-        "time_gap": c_time_gap.astype(np.float64)
+
+def point_headings(track: pd.DataFrame, window: int = 2, stationary_m: float = 3.0):
+    """Direction of travel (deg, 0 = +x/east, counter-clockwise) over a +-window point span; NaN if stationary."""
+    xy = track[["x", "y"]].to_numpy()
+    n = len(xy)
+    lo = np.clip(np.arange(n) - window, 0, n - 1)
+    hi = np.clip(np.arange(n) + window, 0, n - 1)
+    d = xy[hi] - xy[lo]
+    h = np.degrees(np.arctan2(d[:, 1], d[:, 0]))
+    h[np.hypot(d[:, 0], d[:, 1]) < stationary_m] = np.nan
+    return h
+
+
+def generate_candidates(track, nodes, arcs, radius_m=50.0, k=8):
+    """Return arrays (point_idx, arc_id, distance, pos_along_arc, fallback) for the K nearest arcs within R."""
+    a, b = arc_geometry(nodes, arcs)
+    lines = shapely.linestrings(np.stack([a, b], axis=1))
+    tree = shapely.STRtree(lines)
+    pts = shapely.points(track[["x", "y"]].to_numpy())
+
+    pi, ai = tree.query(pts, predicate="dwithin", distance=radius_m)
+    fallback = np.zeros(len(pi), dtype=np.int8)
+    missing = np.setdiff1d(np.arange(len(pts)), pi)
+    if len(missing):
+        mp, ma = tree.query_nearest(pts[missing], all_matches=False)
+        pi = np.r_[pi, missing[mp]]
+        ai = np.r_[ai, ma]
+        fallback = np.r_[fallback, np.ones(len(mp), dtype=np.int8)]
+
+    p = track[["x", "y"]].to_numpy()[pi]
+    ab = b[ai] - a[ai]
+    l2 = np.maximum((ab ** 2).sum(1), 1e-9)
+    t = np.clip(((p - a[ai]) * ab).sum(1) / l2, 0, 1)
+    dist = np.linalg.norm(p - (a[ai] + t[:, None] * ab), axis=1)
+
+    df = pd.DataFrame({"point_idx": pi, "arc_id": ai, "distance": dist, "pos_along_arc": t, "fallback": fallback})
+    df = df.sort_values(["point_idx", "distance", "arc_id"], kind="stable")
+    df["distance_rank"] = df.groupby("point_idx").cumcount() + 1
+    df = df[df["distance_rank"] <= k].reset_index(drop=True)
+    return df
+
+
+def _relation(arc_from, arc_to, fr, to):
+    """0 same arc, 1 arc_to directly follows arc_from, 2 reverse twin, 3 other (vectorised)."""
+    same = arc_from == arc_to
+    succ = to[arc_from] == fr[arc_to]
+    twin = (fr[arc_from] == to[arc_to]) & (to[arc_from] == fr[arc_to])
+    return np.select([same, succ, twin], [0, 1, 2], 3).astype(np.int32)
+
+
+def build_candidates_and_features(track: pd.DataFrame, nodes: pd.DataFrame, arcs: pd.DataFrame,
+                                  config: Optional[Dict] = None, trip_id: str = "") -> pd.DataFrame:
+    cfg = {**DEFAULT_CONFIG, **(config or {})}
+    df = generate_candidates(track, nodes, arcs, cfg["radius_m"], cfg["k"])
+
+    fr = arcs["from_node"].to_numpy()
+    to = arcs["to_node"].to_numpy()
+    a, b = arc_geometry(nodes, arcs)
+    arc_len = np.linalg.norm(b - a, axis=1)
+    arc_bearing = np.degrees(np.arctan2(b[:, 1] - a[:, 1], b[:, 0] - a[:, 0]))
+    out_deg = np.bincount(fr, minlength=len(nodes))
+
+    xy = track[["x", "y"]].to_numpy()
+    t = track["t"].to_numpy()
+    step = np.r_[0.0, np.linalg.norm(np.diff(xy, axis=0), axis=1)]
+    dt = np.r_[0.0, np.diff(t)]
+    speed = np.where(dt > 0, step / np.where(dt > 0, dt, 1), 0.0)
+    heading = point_headings(track, cfg["heading_window"], cfg["stationary_m"])
+
+    pidx = df["point_idx"].to_numpy()
+    aid = df["arc_id"].to_numpy()
+
+    hd = np.abs((heading[pidx] - arc_bearing[aid] + 180.0) % 360.0 - 180.0)
+    hd = np.where(np.isnan(hd), 0.0, hd)
+
+    # nearest candidate of every point (rank 1)
+    nearest = np.full(len(track), -1, dtype=np.int64)
+    r1 = df["distance_rank"].to_numpy() == 1
+    nearest[pidx[r1]] = aid[r1]
+    prev_near = np.r_[-1, nearest[:-1]][pidx]
+    next_near = np.r_[nearest[1:], -1][pidx]
+    prev_rel = np.where(prev_near >= 0, _relation(np.maximum(prev_near, 0), aid, fr, to), 3)
+    next_rel = np.where(next_near >= 0, _relation(aid, np.maximum(next_near, 0), fr, to), 3)
+
+    min_d = df.groupby("point_idx")["distance"].transform("min").to_numpy()
+    n_c = df.groupby("point_idx")["arc_id"].transform("size").to_numpy()
+
+    out = pd.DataFrame({
+        "trip_id": trip_id,
+        "point_idx": pidx.astype(np.int64),
+        "arc_id": aid.astype(np.int64),
+        "distance": df["distance"].to_numpy(),
+        "distance_rank": df["distance_rank"].to_numpy().astype(np.int32),
+        "dist_minus_min": df["distance"].to_numpy() - min_d,
+        "n_cands": n_c.astype(np.int32),
+        "heading_diff": hd,
+        "speed": speed[pidx],
+        "arc_length": arc_len[aid],
+        "pos_along_arc": df["pos_along_arc"].to_numpy(),
+        "node_degree": out_deg[to[aid]].astype(np.int32),
+        "prev_arc_connectivity": prev_rel.astype(np.int32),
+        "next_arc_connectivity": next_rel.astype(np.int32),
+        "time_gap": dt[pidx],
+        "fallback": df["fallback"].to_numpy(),
     })
-    
-    return cands_df
-
-def attach_labels_to_candidates(
-    candidates_df: pd.DataFrame,
-    true_arc_per_point: np.ndarray,
-    split: str = "train"
-) -> pd.DataFrame:
-    """
-    Attach binary target label column to candidates table:
-    - 1 if arc_id == true_arc of that point
-    - 0 if candidate is not true_arc
-    - -1 if split is 'student_test'
-    """
-    df = candidates_df.copy()
-    if split == "student_test" or true_arc_per_point is None or len(true_arc_per_point) == 0:
-        df["label"] = np.int32(-1)
-    else:
-        pts = df["point_idx"].values
-        arcs = df["arc_id"].values
-        target_true_arcs = true_arc_per_point[pts]
-        labels = np.where(arcs == target_true_arcs, 1, 0).astype(np.int32)
-        df["label"] = labels
-        
-    # Reorder columns to strictly match contract:
-    # id_cols (trip_id, point_idx, arc_id), label, split, epsg, feature_columns
-    ordered_cols = [
-        "trip_id", "point_idx", "arc_id", "label", "split", "epsg",
-        "distance", "distance_rank", "heading_diff", "speed", "arc_length",
-        "pos_along_arc", "node_degree", "prev_arc_connectivity", "time_gap"
-    ]
-    return df[ordered_cols]
+    return out
