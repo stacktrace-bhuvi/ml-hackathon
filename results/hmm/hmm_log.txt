@@ -1,0 +1,65 @@
+{'emission': 'classifier', 'beta': 0.1, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9219307927027203}
+{'emission': 'classifier', 'beta': 0.25, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9277738102966955}
+{'emission': 'classifier', 'beta': 0.5, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9347205089917549}
+{'emission': 'classifier', 'beta': 1, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.941959358566513}
+{'emission': 'classifier', 'beta': 2, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9348503538271765}
+{'emission': 'classifier', 'beta': 5, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9310523923910926}
+{'emission': 'classifier', 'beta': 10, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9269947412841654}
+{'emission': 'classifier', 'beta': 20, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9214114133610336}
+{'emission': 'classifier', 'beta': 40, 'emission_weight': 1.0, 'sigma_m': None, 'top1': 0.9143673310394079}
+{'emission': 'distance', 'beta': 0.25, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9212166461079011}
+{'emission': 'distance', 'beta': 0.25, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9171914562098292}
+{'emission': 'distance', 'beta': 0.25, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9154385509316367}
+{'emission': 'distance', 'beta': 0.25, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9142699474128416}
+{'emission': 'distance', 'beta': 0.5, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9175809907160942}
+{'emission': 'distance', 'beta': 0.5, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9215412581964553}
+{'emission': 'distance', 'beta': 0.5, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9172239174186847}
+{'emission': 'distance', 'beta': 0.5, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9154385509316367}
+{'emission': 'distance', 'beta': 1, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9239433876517561}
+{'emission': 'distance', 'beta': 1, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9253716808413945}
+{'emission': 'distance', 'beta': 1, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.917873141595793}
+{'emission': 'distance', 'beta': 1, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9168993053301305}
+{'emission': 'distance', 'beta': 2, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.92696228007531}
+{'emission': 'distance', 'beta': 2, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9272868921638642}
+{'emission': 'distance', 'beta': 2, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9232617022657924}
+{'emission': 'distance', 'beta': 2, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9170616113744076}
+{'emission': 'distance', 'beta': 5, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9215087969875998}
+{'emission': 'distance', 'beta': 5, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9266701291956112}
+{'emission': 'distance', 'beta': 5, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9256962929299487}
+{'emission': 'distance', 'beta': 5, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9238460040251899}
+{'emission': 'distance', 'beta': 10, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9151139388430826}
+{'emission': 'distance', 'beta': 10, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9252742972148282}
+{'emission': 'distance', 'beta': 10, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9249172239174187}
+{'emission': 'distance', 'beta': 10, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9253392196325391}
+{'emission': 'distance', 'beta': 20, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9082321625657339}
+{'emission': 'distance', 'beta': 20, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9196909692916965}
+{'emission': 'distance', 'beta': 20, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9268973576575992}
+{'emission': 'distance', 'beta': 20, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.9250146075439849}
+{'emission': 'distance', 'beta': 40, 'emission_weight': 1.0, 'sigma_m': 3, 'top1': 0.9026812958514575}
+{'emission': 'distance', 'beta': 40, 'emission_weight': 1.0, 'sigma_m': 5, 'top1': 0.9118353567486853}
+{'emission': 'distance', 'beta': 40, 'emission_weight': 1.0, 'sigma_m': 8, 'top1': 0.9225800168798286}
+{'emission': 'distance', 'beta': 40, 'emission_weight': 1.0, 'sigma_m': 12, 'top1': 0.92696228007531}
+decoder params: {'beta': 1.0, 'emission_weight': 1.0, 'slack_m': 200.0, 'gap_s': 30.0} distance baseline: {'emission': 'distance', 'beta': np.float64(2.0), 'emission_weight': np.float64(1.0), 'sigma_m': np.float64(5.0), 'top1': np.float64(0.9272868921638642)}
+00000000 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.544), ('classifier only', 0.946), ('distance-only HMM', 0.964), ('classifier + HMM', 0.98)]
+00000007 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.453), ('classifier only', 0.942), ('distance-only HMM', 0.991), ('classifier + HMM', 1.0)]
+00000009 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.547), ('classifier only', 0.876), ('distance-only HMM', 0.856), ('classifier + HMM', 0.891)]
+00000040 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.549), ('classifier only', 0.93), ('distance-only HMM', 0.978), ('classifier + HMM', 0.95)]
+00000052 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.779), ('classifier only', 0.966), ('distance-only HMM', 0.996), ('classifier + HMM', 1.0)]
+00000056 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.692), ('classifier only', 0.905), ('distance-only HMM', 0.941), ('classifier + HMM', 0.959)]
+00000065 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.668), ('classifier only', 0.865), ('distance-only HMM', 0.832), ('classifier + HMM', 0.87)]
+00000076 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.418), ('classifier only', 0.907), ('distance-only HMM', 0.93), ('classifier + HMM', 0.961)]
+00000077 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.424), ('classifier only', 0.75), ('distance-only HMM', 0.781), ('classifier + HMM', 0.842)]
+00000091 {'nearest arc': 0, 'classifier only': 0, 'distance-only HMM': 0, 'classifier + HMM': 0} [('nearest arc', 0.566), ('classifier only', 0.879), ('distance-only HMM', 0.93), ('classifier + HMM', 0.951)]
+              method  top1_pooled  top1_mean_per_trip  strict_continuity  feasible_continuity  route_arc_precision  route_arc_recall  route_arc_f1  route_breaks_total  decode_seconds_total
+0        nearest arc       0.5441              0.5640             0.2777               0.8111               0.4561            0.9856        0.6158               496.0                0.0000
+1    classifier only       0.8818              0.8965             0.8095               0.9590               0.7133            0.9915        0.8226               128.0                0.0582
+2  distance-only HMM       0.9110              0.9199             0.9031               0.9975               0.9231            0.9923        0.9552                 4.0                5.2898
+3   classifier + HMM       0.9326              0.9405             0.9065               0.9974               0.9382            0.9931        0.9641                 4.0                4.7937
+                model  classifier_only_top1  classifier_hmm_top1
+0        DecisionTree                0.8325               0.9229
+1          GaussianNB                0.8362               0.9201
+2                 KNN                0.8578               0.9255
+3            LightGBM                0.8815               0.9304
+4  LogisticRegression                0.8565               0.9297
+5                 MLP                0.8730               0.9376
+6        RandomForest                0.8836               0.9363
