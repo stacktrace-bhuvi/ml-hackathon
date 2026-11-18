@@ -1,0 +1,3 @@
+# PathSnap
+
+Place the dataset at data/raw/Student folder/{train,student_test}/...

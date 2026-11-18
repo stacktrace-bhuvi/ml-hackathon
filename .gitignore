@@ -1,0 +1,10 @@
+data/raw/
+data/processed/*
+!data/processed/README.md
+!data/processed/sample_*.parquet
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+.env
+*.log
