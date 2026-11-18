@@ -1,4 +1,6 @@
 raw_data_path: "data/raw/Student folder"
+default_R: 75.0   # search radius in meters (1.50% miss rate on train partition)
+default_K: 15     # max candidates kept per point (average 8.68 candidates/point)
 id_columns:
   - trip_id
   - point_idx
